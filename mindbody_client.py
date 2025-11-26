@@ -21,9 +21,19 @@ HEADERS = {
 def fetch_clients(search_text: str = None, client_id: str = None):
     """
     Fetch clients from MINDBODY.
+    
+    IMPORTANT: SearchText only searches FirstName, LastName, and partial Email.
+    It does NOT search phone numbers!
+    
     Supports:
-    - SearchText (email, phone, name) - Requires at least 3 characters
-    - ClientIds (exact client_id)
+    - SearchText: Searches first name, last name, partial email (min 3 chars recommended)
+    - ClientIds: Search by exact client ID
+    
+    Examples:
+    - fetch_clients(search_text="John") → finds "John Doe"
+    - fetch_clients(search_text="doe") → finds "John Doe"  
+    - fetch_clients(search_text="john.doe") → finds "john.doe@example.com"
+    - fetch_clients(client_id="100015633") → finds specific client
     """
     url = f"{BASE_URL}/client/clients"
     params = {}
@@ -32,7 +42,7 @@ def fetch_clients(search_text: str = None, client_id: str = None):
         params["ClientIds"] = client_id
         print("Fetching clients by ID →", params)
     elif search_text:
-        # Mindbody SearchText often requires at least 3 characters
+        # SearchText searches FirstName, LastName, and Email only
         if len(search_text) < 3:
             return {
                 "error": "Search text must be at least 3 characters",
@@ -47,10 +57,10 @@ def fetch_clients(search_text: str = None, client_id: str = None):
         params["SearchText"] = search_text
         print("Fetching clients by search text →", params)
     else:
-        # If no parameters, get all clients (use empty search or pagination)
+        # If no parameters, get first 100 clients
         params["Limit"] = 100
         params["Offset"] = 0
-        print("Fetching all clients →", params)
+        print("Fetching all clients (first 100) →", params)
 
     response = requests.get(url, headers=HEADERS, params=params)
     
@@ -65,7 +75,70 @@ def fetch_clients(search_text: str = None, client_id: str = None):
 
 
 # ----------------------------
-# 2. FETCH CLASSES
+# 2. SEARCH CLIENTS BY PHONE (WORKAROUND)
+# ----------------------------
+def search_clients_by_phone(phone: str):
+    """
+    Search for clients by phone number.
+    
+    NOTE: Mindbody's SearchText doesn't search phone numbers,
+    so we fetch all clients and filter locally.
+    
+    This is slower but works for phone searches.
+    """
+    print(f"Searching for phone: {phone} (fetching all clients and filtering locally)")
+    
+    url = f"{BASE_URL}/client/clients"
+    all_clients = []
+    offset = 0
+    limit = 100
+    
+    # Fetch all clients in batches
+    while True:
+        params = {"Limit": limit, "Offset": offset}
+        response = requests.get(url, headers=HEADERS, params=params)
+        
+        try:
+            data = response.json()
+            clients = data.get("Clients", [])
+            
+            if not clients:
+                break
+            
+            all_clients.extend(clients)
+            
+            # Check if we got all clients
+            total = data.get("PaginationResponse", {}).get("TotalResults", 0)
+            if len(all_clients) >= total:
+                break
+            
+            offset += limit
+        except:
+            break
+    
+    # Filter by phone
+    matching_clients = [
+        c for c in all_clients 
+        if c.get("MobilePhone") == phone or 
+           c.get("HomePhone") == phone or 
+           c.get("WorkPhone") == phone
+    ]
+    
+    print(f"Found {len(matching_clients)} clients with phone {phone}")
+    
+    return {
+        "Clients": matching_clients,
+        "PaginationResponse": {
+            "RequestedLimit": 100,
+            "RequestedOffset": 0,
+            "PageSize": len(matching_clients),
+            "TotalResults": len(matching_clients)
+        }
+    }
+
+
+# ----------------------------
+# 3. FETCH CLASSES
 # ----------------------------
 def fetch_classes():
     """
@@ -87,7 +160,7 @@ def fetch_classes():
 
 
 # ----------------------------
-# 3. FETCH APPOINTMENTS
+# 4. FETCH APPOINTMENTS
 # ----------------------------
 def fetch_appointments(staff_id: str = None, start_date: str = None, end_date: str = None):
     """
@@ -121,7 +194,7 @@ def fetch_appointments(staff_id: str = None, start_date: str = None, end_date: s
 
 
 # ----------------------------
-# 4. ADD CLIENT (NEW!)
+# 5. ADD CLIENT
 # ----------------------------
 def add_client(
     first_name: str,
@@ -133,7 +206,7 @@ def add_client(
     state: str = None,
     postal_code: str = None,
     birth_date: str = None,
-    referred_by: str = "Website",  # NEW - Required field!
+    referred_by: str = "Website",
     test_mode: bool = True
 ):
     """
@@ -162,7 +235,7 @@ def add_client(
         "FirstName": first_name,
         "LastName": last_name,
         "Email": email,
-        "ReferredBy": referred_by  # REQUIRED!
+        "ReferredBy": referred_by
     }
     
     # Add optional fields

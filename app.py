@@ -4,6 +4,7 @@ from mindbody_client import (
     fetch_classes,
     fetch_appointments,
     add_client,
+    search_clients_by_phone,  # NEW!
 )
 
 app = FastAPI(title="Mindbody CRM API")
@@ -18,23 +19,32 @@ def get_clients(
 ):
     """
     Search MINDBODY clients.
-    You can use any of:
-    - /clients?client_id=123
-    - /clients?email=test@example.com
-    - /clients?phone=9999999999
-    - /clients?name=John
+    
+    IMPORTANT: Mindbody's SearchText only searches FirstName, LastName, and Email.
+    Phone searches require fetching all clients and filtering locally (slower).
+    
+    Examples:
+    - /clients?client_id=100015633  → Search by ID (fastest)
+    - /clients?name=John            → Search by name
+    - /clients?email=john.doe       → Search by email (partial match)
+    - /clients?phone=5551234567     → Search by phone (slower, fetches all clients)
     """
 
-    # MINDBODY: client_id uses ClientIds
+    # Search by client ID (most efficient)
     if client_id:
         return fetch_clients(client_id=client_id)
 
-    # MINDBODY: SearchText handles email, phone, name
-    search_text = email or phone or name
+    # Search by phone (special handling - fetches all and filters)
+    if phone:
+        return search_clients_by_phone(phone)
+
+    # Search by name or email using SearchText
+    search_text = email or name
     if search_text:
         return fetch_clients(search_text=search_text)
 
-    return {"error": "Please pass at least one query parameter"}
+    # No parameters - return first 100 clients
+    return fetch_clients()
 
 
 # ----------------------------
@@ -72,6 +82,10 @@ def get_appointments(
     """
     return fetch_appointments(staff_id, from_date, to_date)
 
+
+# ----------------------------
+# 4. ADD CLIENT ENDPOINT
+# ----------------------------
 @app.post("/clients/add")
 def add_new_client(
     first_name: str = Query(...),
