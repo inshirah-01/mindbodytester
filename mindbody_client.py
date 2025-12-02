@@ -56,8 +56,8 @@ def ensure_token():
         return USER_TOKEN
 
     # expired — reissue using default sandbox credentials
-    username = "Siteowner"
-    password = "apitest1234"
+    username = "mindbodysandbox99@gmail.com"
+    password = "Apitest1234"
 
     print("🔄 Refreshing MINDBODY Staff Token...")
     data = issue_user_token(username, password)
