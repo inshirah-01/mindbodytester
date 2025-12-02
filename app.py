@@ -1,121 +1,97 @@
 from fastapi import FastAPI, Query
 from mindbody_client import (
-    fetch_clients,
-    fetch_classes,
-    fetch_appointments,
+    issue_user_token,
     add_client,
-    search_clients_by_phone,  # NEW!
+    get_client_info,
+    get_client_visits,
+    get_class_schedule,
+    book_class,
+    get_attendance_history,
 )
 
-app = FastAPI(title="Mindbody CRM API")
+app = FastAPI(title="Mindbody Integration API")
 
 
-@app.get("/clients")
-def get_clients(
-    client_id: str | None = Query(None),
-    email: str | None = Query(None),
-    phone: str | None = Query(None),
-    name: str | None = Query(None),
-):
+# ============================================================
+# 1) MANUAL TOKEN GENERATION (optional)
+# ============================================================
+@app.post("/token")
+def generate_token(username: str, password: str):
     """
-    Search MINDBODY clients.
-    
-    IMPORTANT: Mindbody's SearchText only searches FirstName, LastName, and Email.
-    Phone searches require fetching all clients and filtering locally (slower).
-    
-    Examples:
-    - /clients?client_id=100015633  → Search by ID (fastest)
-    - /clients?name=John            → Search by name
-    - /clients?email=john.doe       → Search by email (partial match)
-    - /clients?phone=5551234567     → Search by phone (slower, fetches all clients)
+    Manually issue a MINDBODY staff token.
+    Only needed if you want to test manually.
     """
-
-    # Search by client ID (most efficient)
-    if client_id:
-        return fetch_clients(client_id=client_id)
-
-    # Search by phone (special handling - fetches all and filters)
-    if phone:
-        return search_clients_by_phone(phone)
-
-    # Search by name or email using SearchText
-    search_text = email or name
-    if search_text:
-        return fetch_clients(search_text=search_text)
-
-    # No parameters - return first 100 clients
-    return fetch_clients()
+    return issue_user_token(username, password)
 
 
-# ----------------------------
-# 2. CLASSES ENDPOINT
-# ----------------------------
-@app.get("/classes")
-def get_classes():
-    """
-    Fetch class list from MINDBODY.
-    Example:
-    /classes
-    """
-    return fetch_classes()
-
-
-# ----------------------------
-# 3. APPOINTMENTS ENDPOINT
-# ----------------------------
-@app.get("/appointments")
-def get_appointments(
-    staff_id: str | None = Query(None),
-    from_date: str | None = Query(None),
-    to_date: str | None = Query(None)
-):
-    """
-    Fetch appointments from MINDBODY.
-    Optional:
-    - staff_id
-    - from_date (YYYY-MM-DD)
-    - to_date (YYYY-MM-DD)
-
-    Example:
-    /appointments?staff_id=1
-    /appointments?from_date=2024-01-01&to_date=2024-01-31
-    """
-    return fetch_appointments(staff_id, from_date, to_date)
-
-
-# ----------------------------
-# 4. ADD CLIENT ENDPOINT
-# ----------------------------
+# ============================================================
+# 2) ADD CLIENT
+# ============================================================
 @app.post("/clients/add")
-def add_new_client(
-    first_name: str = Query(...),
-    last_name: str = Query(...),
-    email: str = Query(...),
-    phone: str = Query(...),
-    address: str = Query("123 Main St"),
-    city: str = Query("San Luis Obispo"),
-    state: str = Query("CA"),
-    postal_code: str = Query("93401"),
-    birth_date: str = Query("1990-01-01"),
-    referred_by: str = Query("Website"),
-    test_mode: bool = Query(True)
+def create_new_client(client: dict):
+    """
+    Add a new client to MINDBODY sandbox.
+    Requires staff token (auto-generated internally).
+    """
+    return add_client(client)
+
+
+# ============================================================
+# 3) GET CLIENT FULL INFO
+# ============================================================
+@app.get("/clients/{client_id}")
+def client_details(client_id: str):
+    """
+    Fetch full details about a client.
+    Includes demographics, alerts, locations, history, etc.
+    """
+    return get_client_info(client_id)
+
+
+# ============================================================
+# 4) GET CLIENT VISIT HISTORY
+# ============================================================
+@app.get("/clients/{client_id}/visits")
+def client_visits(client_id: str):
+    """
+    Get client's visit history (arrivals, classes, attendance).
+    """
+    return get_client_visits(client_id)
+
+
+# ============================================================
+# 5) GET CLASS SCHEDULE
+# ============================================================
+@app.get("/classes")
+def fetch_classes(
+    start_date: str = Query(None, description="YYYY-MM-DD"),
+    end_date: str = Query(None, description="YYYY-MM-DD")
 ):
     """
-    Add a new client via API
-    
-    Example:
-    POST /clients/add?first_name=Mike&last_name=Test&email=mike@test.com&phone=5559999999&test_mode=true
+    Fetch class schedule between optional dates.
+    MINDBODY sandbox (-99) already contains sample classes.
     """
-    return add_client(
-        first_name=first_name,
-        last_name=last_name,
-        email=email,
-        phone=phone,
-        address=address,
-        city=city,
-        state=state,
-        postal_code=postal_code,
-        birth_date=birth_date,
-        referred_by=referred_by,
-        test_mode=test_mode
-    )
+    return get_class_schedule(start_date, end_date)
+
+
+# ============================================================
+# 6) BOOK A CLASS
+# ============================================================
+@app.post("/classes/book")
+def book_class_for_client(client_id: str, class_id: int):
+    """
+    Book a client into a class.
+    Requires staff token (auto-handled).
+    """
+    return book_class(client_id, class_id)
+
+
+# ============================================================
+# 7) ATTENDANCE HISTORY
+# ============================================================
+@app.get("/clients/{client_id}/attendance")
+def attendance_history(client_id: str):
+    """
+    Fetch attendance history for a client.
+    """
+    return get_attendance_history(client_id)
