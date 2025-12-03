@@ -172,3 +172,212 @@ def get_attendance_history(client_id: str):
         params={"ClientId": client_id},
         require_auth=True
     )
+# ============================================================
+# 7) PHASE 1 - NEW CLIENT ENDPOINTS
+# ============================================================
+def get_clients(search_text=None, limit=100, offset=0):
+    """Get list of all clients with optional search and pagination."""
+    params = {
+        "SearchText": search_text,
+        "Limit": limit,
+        "Offset": offset
+    }
+    return mb_request(
+        method="GET",
+        endpoint="/client/clients",
+        params=params,
+        require_auth=True
+    )
+
+
+def update_client(client_id: str, client_data: dict):
+    """Update existing client information."""
+    body = {
+        "ClientId": client_id,
+        **client_data
+    }
+    return mb_request(
+        method="POST",
+        endpoint="/client/updateclient",
+        body=body,
+        require_auth=True
+    )
+
+
+# ============================================================
+# 8) PHASE 1 - NEW CLASS ENDPOINTS
+# ============================================================
+def remove_client_from_class(client_id: str, class_id: int, late_cancel: bool = False):
+    """Remove/cancel client from a class."""
+    body = {
+        "ClientId": client_id,
+        "ClassId": class_id,
+        "LateCancel": late_cancel,
+        "Test": False
+    }
+    return mb_request(
+        method="POST",
+        endpoint="/class/removeclientfromclass",
+        body=body,
+        require_auth=True
+    )
+
+
+# ============================================================
+# 9) PHASE 1 - NEW APPOINTMENT ENDPOINTS
+# ============================================================
+def get_active_session_times(start_date=None, end_date=None, location_id=None, staff_id=None):
+    """Get available appointment time slots."""
+    params = {
+        "StartDate": start_date,
+        "EndDate": end_date,
+        "LocationId": location_id,
+        "StaffId": staff_id
+    }
+    return mb_request(
+        method="GET",
+        endpoint="/appointment/activesessiontimes",
+        params=params,
+        require_auth=True
+    )
+
+
+def add_appointment(client_id: str, session_type_id: int, location_id: int, staff_id: int, start_datetime: str):
+    """Book an appointment for a client."""
+    body = {
+        "ClientId": client_id,
+        "SessionTypeId": session_type_id,
+        "LocationId": location_id,
+        "StaffId": staff_id,
+        "StartDateTime": start_datetime,
+        "Test": False
+    }
+    return mb_request(
+        method="POST",
+        endpoint="/appointment/addappointment",
+        body=body,
+        require_auth=True
+    )
+
+# ============================================================
+# 10) SALE ENDPOINTS - GET OPERATIONS
+# ============================================================
+def get_services(location_id=None, session_type_id=None, limit=100, offset=0):
+    """Get available services/class passes."""
+    params = {
+        "LocationId": location_id,
+        "SessionTypeId": session_type_id,
+        "Limit": limit,
+        "Offset": offset
+    }
+    return mb_request(
+        method="GET",
+        endpoint="/sale/services",
+        params=params,
+        require_auth=True
+    )
+
+
+def get_contracts(location_id=None, limit=100, offset=0):
+    """Get available membership contracts."""
+    params = {
+        "LocationId": location_id,
+        "Limit": limit,
+        "Offset": offset
+    }
+    return mb_request(
+        method="GET",
+        endpoint="/sale/contracts",
+        params=params,
+        require_auth=True
+    )
+
+
+def get_products(location_id=None, limit=100, offset=0):
+    """Get retail products."""
+    params = {
+        "LocationId": location_id,
+        "Limit": limit,
+        "Offset": offset
+    }
+    return mb_request(
+        method="GET",
+        endpoint="/sale/products",
+        params=params,
+        require_auth=True
+    )
+
+
+def get_packages(location_id=None, limit=100, offset=0):
+    """Get service packages."""
+    params = {
+        "LocationId": location_id,
+        "Limit": limit,
+        "Offset": offset
+    }
+    return mb_request(
+        method="GET",
+        endpoint="/sale/packages",
+        params=params,
+        require_auth=True
+    )
+
+
+def get_sales(start_date=None, end_date=None, limit=100, offset=0):
+    """Get sales/transaction history."""
+    params = {
+        "StartDate": start_date,
+        "EndDate": end_date,
+        "Limit": limit,
+        "Offset": offset
+    }
+    return mb_request(
+        method="GET",
+        endpoint="/sale/sales",
+        params=params,
+        require_auth=True
+    )
+
+
+def get_accepted_card_types():
+    """Get accepted payment card types."""
+    return mb_request(
+        method="GET",
+        endpoint="/sale/acceptedcardtypes",
+        require_auth=True
+    )
+
+
+# ============================================================
+# 11) SALE ENDPOINTS - POST OPERATIONS
+# ============================================================
+def purchase_contract(client_id: str, contract_id: int, location_id: int, test: bool = False):
+    """Purchase a contract/membership/class pass."""
+    body = {
+        "ClientId": client_id,
+        "ContractId": contract_id,
+        "LocationId": location_id,
+        "Test": test
+    }
+    return mb_request(
+        method="POST",
+        endpoint="/sale/purchasecontract",
+        body=body,
+        require_auth=True
+    )
+
+
+def checkout_shopping_cart(client_id: str, items: list, payment_info: dict, test: bool = False):
+    """Checkout shopping cart with payment."""
+    body = {
+        "ClientId": client_id,
+        "Items": items,
+        "PaymentInfo": payment_info,
+        "Test": test
+    }
+    return mb_request(
+        method="POST",
+        endpoint="/sale/checkoutshoppingcart",
+        body=body,
+        require_auth=True
+    )
